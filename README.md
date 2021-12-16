@@ -19,14 +19,13 @@ Small project of mine to receive notifications, if a new release has been found 
 
 `$ python main.py`
 
-then edit `config.txt`.
-There you'll have to fill out every entry.
+Then fill out the pre-generated `config.txt` and run the script again.
 
 Example `config.txt`:
 
 ```
 [config]
-url = http://nyaa.si/rss 
+url = https://nyaa.si/rss 
 search_term = neohevc
 app_token = <GOTIFY-TOKEN>
 gotify_url = <GOTIFY-ADRESS>
@@ -34,3 +33,13 @@ notification_title = RSS-Script
 ```
 
 ---
+
+### Additional information:
+
++ ONLY WORKS ON NYAA.SI (and it's unsupported ad-filled proxies)
++ RSS gets updated every 120 seconds.
++ A list of releases that have been found, is saved in `rss.db`
+
+---
+### For educational purposes only!
+Downloading certain sort of media from nyaa.si may not comply with your country's copyright laws.
