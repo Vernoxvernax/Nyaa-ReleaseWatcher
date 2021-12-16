@@ -3,7 +3,7 @@
 ###### DepriSheep#1841
 
 ---
-Small project of mine to receive notifications, if a new release has been found on nyaa(.)si.
+Small project of mine to receive notifications, if a new release has been found on nyaa.si.
 
 ---
 
