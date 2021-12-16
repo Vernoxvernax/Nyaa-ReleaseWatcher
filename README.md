@@ -12,7 +12,7 @@ Small project of mine to receive notifications, if a new release has been found 
 * up and running gotify server
 * gotify applet token
 * python3 (2 probably works as well)
-* installing the requirements
+* requirements.txt
 
 ---
 
