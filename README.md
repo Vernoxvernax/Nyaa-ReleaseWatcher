@@ -45,5 +45,9 @@ notification_title = RSS-Script
 + A list of releases that have been found, is saved in `rss.db`
 
 ---
+### To-Do:
++ comments :)
+___
+
 ### For educational purposes only!
 Downloading certain sort of media from nyaa.si may not comply with your country's copyright laws.
