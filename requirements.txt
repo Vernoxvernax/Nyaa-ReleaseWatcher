@@ -1,0 +1,4 @@
+gotify~=0.2.0
+configparser~=5.2.0
+requests~=2.26.0
+feedparser~=6.0.8
