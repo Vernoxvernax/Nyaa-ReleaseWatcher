@@ -2,61 +2,90 @@ import os.path
 import time
 import gotify
 import feedparser
-from configparser import ConfigParser
-
-
-def main():
-    print("Reading config file...")
-    global url, search_term, gotify_server, notification_title, gotify_server
-    url, search_term, api_token, gotify_url, notification_title = reading_config_file()
-    gotify_server = gotify.gotify(
-        base_url=gotify_url,
-        app_token=api_token,
-    )
-    based = True
-    while based:
-        time.sleep(120)
-        requesting()
+import configparser
+from datetime import datetime
 
 
 def reading_config_file():
-    if not os.path.exists('config.txt'):
-        print("No config file found.\nCreating one...")
-        with open("config.txt", 'w') as fp:
-            fp.write("[config]\nurl = \nsearch_term = \ngotify_url = \napp_token = \nnotification_title = ")
-        print("Please enter your settings and restart the script.")
+    def reading_settings(header, setting, template):
+        try:
+            variable = config[header][setting]
+            if variable == template:
+                print("Please change \"{}\" in app/config.yml.".format(setting))
+                exit()
+            else:
+                print("\"{}\" has been set to \"{}\"".format(setting, variable))
+            return variable
+        except:
+            if setting != "delay":
+                config[header][setting] = template
+            else:
+                config[header][setting] = "120"
+            with open("app/config.yml", 'w') as configfile:
+                config.write(configfile)
+            print("Please edit app/config.yml and restart the script.")
+            exit()
+
+    def header_check(header):
+        try:
+            config[header]
+        except:
+            config[header] = {}
+            with open("app/config.yml", 'w+') as configfile:
+                config.write(configfile)
+    global domain, meow_uploader, gotify_url, gotify_token, gotify_title, gotify_priority, user_delay
+    print("Checking for config...")
+    config = configparser.ConfigParser()
+    if not os.path.isdir("app"):
+        os.mkdir("app")
+    if os.path.exists('app/config.yml'):
+        print("Found config.yml.")
+        config.read("app/config.yml")
+        header_check("ReleaseWatcher")
+        domain = reading_settings("ReleaseWatcher", "url", "<INSERT URL like 'https://meow.com/?page=rss'>")
+        meow_uploader = reading_settings("ReleaseWatcher", "uploader", "<INSERT RELEASE TAG like 'neoHEVC'>")
+        user_delay = int(reading_settings("ReleaseWatcher", "delay", "0"))
+        header_check("Gotify")
+        gotify_url = reading_settings("Gotify", "gotify_url", "<INSERT GOTIFY-URL HERE>")
+        gotify_token = reading_settings("Gotify", "token", "<INSERT GOTIFY-TOKEN HERE>")
+        gotify_title = reading_settings("Gotify", "notification_title", "<INSERT NOTIFICATION TITLE HERE>")
+        gotify_priority = int(reading_settings("Gotify", "priority", "<PRIORITY OF MESSAGE (0-15)>"))
+        print("Settings have been successfully injected.")
     else:
-        config = ConfigParser()
-        config.read("config.txt")
-        config_header = config["config"]
-        url = config_header["url"]
-        search_term = config_header["search_term"]
-        gotify_url = config_header["gotify_url"]
-        app_token = config_header["app_token"]
-        notification_title = config_header["notification_title"]
-        print("The following settings have been imported:\n URL: {}\n Search-Term: {}\n Gotify-Domain: {}\n".format(url, search_term, gotify_url))
-        return url, search_term, app_token, gotify_url, notification_title
+        config["ReleaseWatcher"] = {}
+        config["ReleaseWatcher"]["url"] = "<INSERT URL like 'https://meow.com/?page=rss'>"
+        config["ReleaseWatcher"]["uploader"] = "<INSERT RELEASE TAG like 'neoHEVC'>"
+        config["ReleaseWatcher"]["delay"] = "120"  # If you don't want to see the world burning, leave this above ~30s.
+        config["Gotify"] = {}
+        config["Gotify"]["gotify_url"] = "<INSERT GOTIFY-URL HERE>"
+        config["Gotify"]["token"] = "<INSERT GOTIFY-TOKEN HERE>"
+        config["Gotify"]["notification_title"] = "<INSERT NOTIFICATION TITLE HERE>"
+        config["Gotify"]["priority"] = "<PRIORITY OF MESSAGE (0-15)>"
+        with open("app/config.yml", 'w') as configfile:
+            config.write(configfile)
+        print("Created the config file.\nPlease edit app/config.yml and restart the script.")
+        exit()
 
 
 def requesting():
-    print("Preparing to request.")
     timeout = 0
     request_status = False
     while not request_status:
         try:
-            rss = feedparser.parse(url)
+            print("Requesting at {}.".format(datetime.now().strftime("%H:%M:%S")))
+            rss = feedparser.parse(domain)
             timeout = 0
         except:
             print("Connection failed. Retrying in 5 seconds.")
             if timeout == 10:
-                gotify_timeout()
+                notification_send("ayo", False)
                 timeout = 0
             time.sleep(5)
             timeout = timeout + 1
         else:
-            print("RSS successfully retrieved.")
+            print("  Connection: SUCCESS")
+            filtering(rss)
             request_status = True
-    filtering(rss)
     return
 
 
@@ -68,53 +97,50 @@ def filtering(rss):
         item_index = entries.index(item)
         item_title = entries[item_index]["title"]
         item_link = entries[item_index]["link"]
-        if search_term in item_title:
+        if meow_uploader in item_title:
             title_list.append(item_title)
             link_list.append(item_link)
     if not title_list:
+        print("No match has been found.")
         return
-    print("New entries have been found.")
-    database = open("rss.db", "a+")
+    database = open("app/rss.db", "a+")
     database.seek(0)
-    duplicate_counter = 0
-    notification = 0
     raw_db = str(database.read())
     for entry in link_list:
-        if entry in raw_db:
-            duplicate_counter = 1
-        else:
+        if entry not in raw_db:
+            print("New release has been found, sending notification.")
             database.seek(0, 2)
-            database.write(entry)
+            database.write("{} - {}".format(title_list[link_list.index(entry)], entry))
             database.write("\n")
-            notification = 1
-    if duplicate_counter == 1:
-        print("At least one item was already in the database.")
+            notification_send(title_list[link_list.index(entry)], True)
     database.close()
-    if notification == 1:
-        gotify_success()
-        return
+    return
+
+
+def notification_send(title, all_good):
+    gotify_server = gotify.gotify(
+        base_url=gotify_url,
+        app_token=gotify_token,
+    )
+    if all_good:
+        gotify_server.create_message(
+            "{} has just been released.".format(title),
+            title=gotify_title,
+            priority=gotify_priority,
+        )
     else:
-        return
-
-
-def gotify_success():
-    print("Sending notification...")
-    gotify_server.create_message(
-        "NEW RELEASE FOUND!!!",
-        title=notification_title,
-        priority=15,
-    )
+        gotify_server.create_message(
+            "ATTENTION! The connection failed 10 times in a row!",
+            title=gotify_title,
+            priority=gotify_priority,
+        )
     return
 
 
-def gotify_timeout():
-    print("This is the 10th connection failure. Sending notification...")
-    gotify_server.create_message(
-        "Connection failed 10 times in a row.",
-        title=notification_title,
-        priority=15,
-    )
-    return
-
-
-main()
+if __name__ == '__main__':
+    reading_config_file()
+    based = True
+    while based:
+        requesting()
+        print("Retrying in {} seconds.".format(user_delay))
+        time.sleep(user_delay)

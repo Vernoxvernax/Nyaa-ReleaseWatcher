@@ -1,0 +1,9 @@
+version: '3'
+services:
+  nyaa-releasewatcher:
+    image: depri/nyaa-releasewatcher
+    container_name: nyaa-releasewatcher
+    # network_mode: container:wireguard
+        # OPTIONAL: To hide your IP, you can use the network of a VPN container.
+    volumes:
+       - ./app:/usr/src/app/app
